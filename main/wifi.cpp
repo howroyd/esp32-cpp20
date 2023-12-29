@@ -3,9 +3,16 @@
 namespace wifi
 {
 
+    SsidPasswordView config_to_ssidpasswordview(const wifi_config_t &config)
+    {
+        return {std::string_view(reinterpret_cast<const char *>(config.sta.ssid), sizeof(config.sta.ssid)),
+                std::string_view(reinterpret_cast<const char *>(config.sta.password), sizeof(config.sta.password))};
+    }
+
     state_t Wifi::state{state_t::IDLE};
     netif::Netif Wifi::sta_netif;
     std::unique_ptr<wifi_init_config_t> Wifi::wifiinitcfg{new wifi_init_config_t(WIFI_INIT_CONFIG_DEFAULT())};
+    nvs::Nvs Wifi::storage{nvs::make_nvs(TAG, NVS_READWRITE)};
     task::Task Wifi::taskhandle{};
     eventgroup::Eventgroup Wifi::event_group{};
 

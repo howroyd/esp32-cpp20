@@ -1,6 +1,5 @@
 #pragma once
 
-#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_smartconfig.h"
@@ -11,7 +10,12 @@
 #include "singleton.hpp"
 #include "wrappers/eventgroup.hpp"
 #include "wrappers/netif.hpp"
+#include "wrappers/nvs.hpp"
 #include "wrappers/task.hpp"
+
+#include <algorithm>
+#include <string_view>
+#include <utility>
 
 namespace wifi
 {
@@ -28,6 +32,9 @@ namespace wifi
     };
 
     static constexpr auto CONNECTED_BIT{BIT0};
+
+    using SsidPasswordView = std::pair<std::string_view, std::string_view>;
+    SsidPasswordView config_to_ssidpasswordview(const wifi_config_t &config);
 
     class Wifi : public Singleton<Wifi> // NOTE: CRTP
     {
@@ -63,11 +70,70 @@ namespace wifi
 
         static state_t get_state() { return state; }
 
+        std::string nvs_ssid() const
+        {
+            return nvs::get_string(storage, "ssid");
+        }
+        bool nvs_ssid(std::string_view ssid)
+        {
+            return nvs::set_string(storage, "ssid", ssid);
+        }
+        static bool nvs_ssid_erase()
+        {
+            return nvs::erase_key(storage, "ssid");
+        }
+        std::string nvs_password() const
+        {
+            return nvs::get_string(storage, "password");
+        }
+        bool nvs_password(std::string_view password)
+        {
+            return nvs::set_string(storage, "password", password);
+        }
+        static bool nvs_password_erase()
+        {
+            return nvs::erase_key(storage, "password");
+        }
+
+        bool reconnect_to(wifi_config_t &wifi_config)
+        {
+            auto status = esp_wifi_disconnect();
+            if (ESP_OK != status)
+            {
+                ESP_LOGW(TAG, "Failed to disconnect: %s", esp_err_to_name(status));
+                return false;
+            }
+
+            status = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+            if (ESP_OK != status)
+            {
+                ESP_LOGW(TAG, "Failed to set config: %s", esp_err_to_name(status));
+                return false;
+            }
+
+            status = esp_wifi_connect();
+            if (ESP_OK != status)
+            {
+                ESP_LOGW(TAG, "Failed to connect: %s", esp_err_to_name(status));
+                return false;
+            }
+
+            return true;
+        }
+
+        auto config() const
+        {
+            wifi_config_t wifi_config{};
+            esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
+            return wifi_config;
+        }
+
     protected:
         static constexpr const char *const TAG{"Wifi"};
         static state_t state;
         static netif::Netif sta_netif;
         static std::unique_ptr<wifi_init_config_t> wifiinitcfg;
+        static nvs::Nvs storage;
 
         Wifi()
         {
@@ -86,7 +152,6 @@ namespace wifi
             ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &EventHandlers::event_handler, nullptr));
             ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &EventHandlers::event_handler, nullptr));
 
-            // wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
             ESP_ERROR_CHECK(esp_wifi_init(wifiinitcfg.get()));
 
             ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -95,6 +160,19 @@ namespace wifi
             event_group = eventgroup::make_eventgroup();
 
             state = state_t::STARTED;
+
+            const auto ssid = nvs_ssid();
+            const auto password = nvs_password();
+
+            if (not ssid.empty() and not password.empty())
+            {
+                ESP_LOGI(TAG, "Connecting to %s", ssid.c_str());
+                wifi_config_t wifi_config{};
+                std::copy(ssid.begin(), ssid.end(), wifi_config.sta.ssid);
+                std::copy(password.begin(), password.end(), wifi_config.sta.password);
+                ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+                ESP_ERROR_CHECK(esp_wifi_connect());
+            }
         }
 
         struct EventHandlers
@@ -139,7 +217,7 @@ namespace wifi
 
         static task::Task taskhandle;
         [[noreturn]] static void taskfn(void *param);
-        static constexpr auto taskstacksize = 896 * sizeof(int);
+        static constexpr auto taskstacksize = 640 * sizeof(int);
 
         static eventgroup::Eventgroup event_group;
     };

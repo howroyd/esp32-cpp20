@@ -2,9 +2,7 @@
 
 #include "esp_event.h"
 #include "esp_log.h"
-#include "esp_netif.h"
 #include "esp_smartconfig.h"
-#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 
 #include "singleton.hpp"
@@ -75,6 +73,7 @@ namespace sc
             ESP_ERROR_CHECK(esp_smartconfig_start(smartconfigcfg.get()));
             state = state_t::STARTED;
         }
+
         SmartConfig(const SmartConfig &) = delete;
         SmartConfig &operator=(const SmartConfig &) = delete;
 
@@ -89,6 +88,7 @@ namespace sc
             enum class handle_success_t
             {
                 OK,
+                FAIL,
                 UNHANDLED
             };
 
