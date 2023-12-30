@@ -7,4 +7,5 @@ idf_component_register(SRCS
                             "wifi.cpp"
                             "smartconfig.cpp"
                             "main.cpp"
-                    INCLUDE_DIRS ".")
+                    INCLUDE_DIRS "."
+)

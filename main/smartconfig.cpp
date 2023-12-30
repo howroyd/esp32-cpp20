@@ -10,7 +10,7 @@ namespace sc
     task::Task SmartConfig::taskhandle{};
     eventgroup::Eventgroup SmartConfig::event_group{};
 
-    [[nodiscard]] wifi_config_t ssid_pswd_to_config(const smartconfig_event_got_ssid_pswd_t &evt)
+    [[nodiscard, gnu::pure]] constexpr wifi_config_t ssid_pswd_to_config(const smartconfig_event_got_ssid_pswd_t &evt)
     {
         wifi_config_t wifi_config{};
 

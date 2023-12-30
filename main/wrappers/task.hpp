@@ -28,12 +28,29 @@ namespace task
         ESP_LOGE(tag, "Stack used: %.0f words (%.2f%%)", stackused, stackusedpercentage);
     }
 
-    [[nodiscard]] static inline constexpr TickType_t to_ticks(std::chrono::milliseconds ms)
+    [[nodiscard, gnu::const]] static inline constexpr TickType_t to_ticks(std::chrono::milliseconds ms)
     {
         if (ms == std::chrono::milliseconds::max())
             return portMAX_DELAY;
         else
             return pdMS_TO_TICKS(ms.count());
+    }
+
+    static inline void delay(std::chrono::milliseconds ms)
+    {
+        vTaskDelay(to_ticks(ms));
+    }
+
+    static inline void delay_until(std::chrono::milliseconds ms)
+    {
+        static auto xLastWakeTime{xTaskGetTickCount()};
+        xTaskDelayUntil(&xLastWakeTime, to_ticks(ms));
+    }
+
+    [[noreturn]] static inline void delay_forever()
+    {
+        vTaskDelay(portMAX_DELAY);
+        __builtin_unreachable();
     }
 
 } // namespace task

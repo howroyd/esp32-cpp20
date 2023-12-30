@@ -6,7 +6,7 @@
 namespace eventgroup
 {
 
-    static EventBits_t eventbits2freertos(const Eventbits &bits)
+    [[gnu::pure]] static EventBits_t eventbits2freertos(const Eventbits &bits)
     {
         if constexpr (n_event_bits <= (sizeof(unsigned long) * 8))
             return bits.to_ulong();
@@ -14,7 +14,7 @@ namespace eventgroup
             return bits.to_ullong();
     }
 
-    static constexpr auto bool2pdTrue(bool b) { return b ? pdTRUE : pdFALSE; }
+    [[gnu::const]] static constexpr auto bool2pdTrue(bool b) { return b ? pdTRUE : pdFALSE; }
 
     void Deleter::operator()(EventGroupHandle_t freertoshandle) const
     {
