@@ -74,7 +74,7 @@ namespace sc
         while (true)
         {
             // const auto uxBits = xEventGroupWaitBits(event_group.get(), ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
-            const auto bits = eventgroup::wait_bits(event_group, ESPTOUCH_DONE_BIT, true, false, portMAX_DELAY);
+            const auto bits = eventgroup::wait_bits(event_group, ESPTOUCH_DONE_BIT, true, false);
 
             // if (uxBits & ESPTOUCH_DONE_BIT)
             if (bits)

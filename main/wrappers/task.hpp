@@ -3,6 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include <chrono>
 #include <memory>
 
 namespace task
@@ -25,6 +26,14 @@ namespace task
         const auto stackused = static_cast<double>(taskstacksize) - uxTaskGetStackHighWaterMark(nullptr);
         const auto stackusedpercentage = static_cast<double>(stackused) / taskstacksize * 100.0;
         ESP_LOGE(tag, "Stack used: %.0f words (%.2f%%)", stackused, stackusedpercentage);
+    }
+
+    [[nodiscard]] static inline constexpr TickType_t to_ticks(std::chrono::milliseconds ms)
+    {
+        if (ms == std::chrono::milliseconds::max())
+            return portMAX_DELAY;
+        else
+            return pdMS_TO_TICKS(ms.count());
     }
 
 } // namespace task

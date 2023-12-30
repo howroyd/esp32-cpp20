@@ -24,7 +24,13 @@ namespace task
     Task make_task(TaskFunction_t fn, const char *taskname, uint32_t taskstacksize, void *args, UBaseType_t taskpriority)
     {
         TaskHandle_t freertoshandle{nullptr};
-        xTaskCreate(fn, taskname, taskstacksize, args, taskpriority, &freertoshandle);
+        const auto success = xTaskCreate(fn, taskname, taskstacksize, args, taskpriority, &freertoshandle);
+        ESP_LOGI("Task", "Task %s created: %s", taskname, success ? "success" : "failure");
+
+        if (!success)
+        {
+            return nullptr;
+        }
         return make_task_from_taskhandle(freertoshandle);
     }
 

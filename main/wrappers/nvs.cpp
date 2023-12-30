@@ -114,4 +114,4 @@ namespace nvs
         return true;
     }
 
-} // namespace eventgroup
+} // namespace nvs

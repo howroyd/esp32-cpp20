@@ -2,29 +2,32 @@
 #include "esp_log.h"
 #include "esp_system.h"
 
+#include <chrono>
 #include <vector>
 
 #include "smartconfig.hpp"
 #include "wifi.hpp"
 #include "wrappers/nvs.hpp"
 #include "wrappers/queue.hpp"
+#include "wrappers/sharablequeue.hpp"
 #include "wrappers/task.hpp"
 
 static const char *TAG = "main";
 
 #define ESP_INTR_FLAG_DEFAULT 0
 
-static auto gpio_evt_queue = queue::make_queue<gpio_num_t>(10);
+static auto gpio_evt_sharablequeue = queue::make_sharablequeue<gpio_num_t>();
 
 static void IRAM_ATTR gpio_isr_handler(void *arg)
 {
     gpio_num_t gpio_num = *reinterpret_cast<const gpio_num_t *>(arg);
-    auto success = gpio_evt_queue->send_from_isr(gpio_num);
-    ESP_DRAM_LOGD("gpio_isr_handler", "GPIO[%d] ISR: %s", gpio_num, success ? "success" : "failure");
+    gpio_evt_sharablequeue->push_from_isr(gpio_num);
+    ESP_DRAM_LOGD("gpio_isr_handler", "GPIO[%d] ISR", gpio_num);
 }
 
 static void gpio_task_example(void *arg)
 {
+    using namespace std::chrono_literals;
     using SmartConfig = sc::SmartConfig::Shared;
 
     std::vector<SmartConfig> instances;
@@ -34,7 +37,8 @@ static void gpio_task_example(void *arg)
 
     while (true)
     {
-        if (const auto result = gpio_evt_queue->receive())
+        // if (const auto result = gpio_evt_sharablequeue->pop_wait(1s))
+        if (const auto result = gpio_evt_sharablequeue->pop_wait())
         {
             ESP_LOGI(TAG, "GPIO[%d] intr, val: %d", result.item, gpio_get_level(result.item));
 
@@ -49,6 +53,8 @@ static void gpio_task_example(void *arg)
                 instances.push_back(sc::SmartConfig::get_shared());
             }
         }
+        else
+            ESP_LOGI(TAG, "GPIO task waiting for interrupt");
     }
 }
 

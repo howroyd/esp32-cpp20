@@ -1,9 +1,20 @@
 #include "esp_log.h"
 
 #include "eventgroup.hpp"
+#include "task.hpp"
 
 namespace eventgroup
 {
+
+    static EventBits_t eventbits2freertos(const Eventbits &bits)
+    {
+        if constexpr (n_event_bits <= (sizeof(unsigned long) * 8))
+            return bits.to_ulong();
+        else
+            return bits.to_ullong();
+    }
+
+    static constexpr auto bool2pdTrue(bool b) { return b ? pdTRUE : pdFALSE; }
 
     void Deleter::operator()(EventGroupHandle_t freertoshandle) const
     {
@@ -18,7 +29,7 @@ namespace eventgroup
 
     Eventgroup make_eventgroup_from_handle(EventGroupHandle_t freertoshandle)
     {
-        return Eventgroup{freertoshandle, deleter};
+        return {freertoshandle, deleter};
     }
 
     Eventgroup make_eventgroup()
@@ -40,7 +51,7 @@ namespace eventgroup
     {
         assert(bits.any());
 
-        return {xEventGroupClearBits(event_group.get(), Eventbits_to_EventBits_t(bits))};
+        return {xEventGroupClearBits(event_group.get(), eventbits2freertos(bits))};
     }
 
     BitsReturn clear_bits_from_isr(Eventgroup &event_group, Eventbits bits)
@@ -48,28 +59,33 @@ namespace eventgroup
         assert(bits.any());
 
         auto before = get_bits_from_isr(event_group);
-        auto success = xEventGroupClearBitsFromISR(event_group.get(), Eventbits_to_EventBits_t(bits));
+        auto success = xEventGroupClearBitsFromISR(event_group.get(), eventbits2freertos(bits));
+
         return {before.bits, before.success && pdPASS == success};
     }
 
     BitsReturn set_bits(Eventgroup &event_group, Eventbits bits)
     {
-        return {xEventGroupSetBits(event_group.get(), Eventbits_to_EventBits_t(bits))};
+        return {xEventGroupSetBits(event_group.get(), eventbits2freertos(bits))};
     }
 
     BitsReturn set_bits_from_isr(Eventgroup &event_group, Eventbits bits)
     {
-        const auto before = get_bits_from_isr(event_group);
+        auto before = get_bits_from_isr(event_group);
         BaseType_t higher_priority_task_woken = pdFALSE;
-        const auto success = xEventGroupSetBitsFromISR(event_group.get(), Eventbits_to_EventBits_t(bits), &higher_priority_task_woken);
-        return {before.bits, before.success && pdPASS == success, pdTRUE == higher_priority_task_woken};
+        auto success = xEventGroupSetBitsFromISR(event_group.get(), eventbits2freertos(bits), &higher_priority_task_woken);
+
+        if (pdTRUE == higher_priority_task_woken)
+            portYIELD_FROM_ISR();
+
+        return {before.bits, before.success && pdPASS == success};
     }
 
-    BitsReturn wait_bits(Eventgroup &event_group, Eventbits bits, bool clear_on_exit, bool wait_for_all_bits, TickType_t ticks_to_wait)
+    BitsReturn wait_bits(Eventgroup &event_group, Eventbits bits, bool clear_on_exit, bool wait_for_all_bits, std::chrono::milliseconds wait_time)
     {
         assert(bits.any());
 
-        const Eventbits bitsreceived = xEventGroupWaitBits(event_group.get(), Eventbits_to_EventBits_t(bits), clear_on_exit ? pdTRUE : pdFALSE, wait_for_all_bits ? pdTRUE : pdFALSE, ticks_to_wait);
+        const Eventbits bitsreceived = xEventGroupWaitBits(event_group.get(), eventbits2freertos(bits), bool2pdTrue(clear_on_exit), bool2pdTrue(wait_for_all_bits), task::to_ticks(wait_time));
 
         const auto masked = bitsreceived & bits;
 

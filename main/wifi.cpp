@@ -31,7 +31,7 @@ namespace wifi
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             esp_wifi_connect();
-            xEventGroupClearBits(event_group.get(), CONNECTED_BIT);
+            eventgroup::clear_bits(event_group, CONNECTED_BIT);
             break;
         [[unlikely]] default:
             ESP_LOGW(TAG, "Unhandled WIFI_EVENT %d", args.event_id);
@@ -46,7 +46,7 @@ namespace wifi
         {
         case IP_EVENT_STA_GOT_IP:
             state = state_t::GOT_IP;
-            xEventGroupSetBits(event_group.get(), CONNECTED_BIT);
+            eventgroup::set_bits(event_group, CONNECTED_BIT);
             break;
         [[unlikely]] default:
             ESP_LOGW(TAG, "Unhandled IP_EVENT %d", args.event_id);
@@ -59,9 +59,11 @@ namespace wifi
     {
         while (true)
         {
-            const auto uxBits = xEventGroupWaitBits(event_group.get(), CONNECTED_BIT, true, false, portMAX_DELAY);
+            // const auto uxBits = xEventGroupWaitBits(event_group.get(), CONNECTED_BIT, true, false, portMAX_DELAY);
+            const auto bits = eventgroup::wait_bits(event_group, CONNECTED_BIT, true, false);
 
-            if (uxBits & CONNECTED_BIT)
+            // if (uxBits & CONNECTED_BIT)
+            if (bits)
             {
                 ESP_LOGI(TAG, "WiFi Connected to AP");
                 state = state_t::DONE;

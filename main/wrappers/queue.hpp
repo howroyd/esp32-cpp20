@@ -1,5 +1,7 @@
 #pragma once
 
+#include "esp_system.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
@@ -20,14 +22,13 @@ namespace queue
         bool empty() const { return 0 == size(); }
         bool full() const { return 0 == spaces(); }
 
-        std::size_t size_from_isr() const { return uxQueueMessagesWaitingFromISR(freertoshandle); }
-        bool empty_from_isr() const { return xQueueIsQueueEmptyFromISR(freertoshandle); }
-        bool full_from_isr() const { return xQueueIsQueueFullFromISR(freertoshandle); }
+        IRAM_ATTR std::size_t size_from_isr() const { return uxQueueMessagesWaitingFromISR(freertoshandle); }
+        IRAM_ATTR bool empty_from_isr() const { return xQueueIsQueueEmptyFromISR(freertoshandle); }
+        IRAM_ATTR bool full_from_isr() const { return xQueueIsQueueFullFromISR(freertoshandle); }
 
         struct Success
         {
             bool success;
-            bool higher_priority_task_woken = false;
             operator bool() const { return success; }
         };
         struct ItemReturn
@@ -43,11 +44,14 @@ namespace queue
             return {{pdTRUE == xQueueReceive(freertoshandle, &item, ticks)}, item};
         }
 
-        [[nodiscard]] ItemReturn receive_from_isr()
+        [[nodiscard]] IRAM_ATTR ItemReturn receive_from_isr()
         {
             Item item{};
             BaseType_t higher_priority_task_woken = pdFALSE;
-            return {{pdTRUE == xQueueReceiveFromISR(freertoshandle, &item, &higher_priority_task_woken), pdTRUE == higher_priority_task_woken}, item};
+            Success ret{pdTRUE == xQueueReceiveFromISR(freertoshandle, &item, &higher_priority_task_woken), item};
+            if (pdTRUE == higher_priority_task_woken)
+                portYIELD_FROM_ISR();
+            return ret;
         }
 
         Success send(Item item, TickType_t ticks = portMAX_DELAY)
@@ -55,10 +59,13 @@ namespace queue
             return {pdTRUE == xQueueSend(freertoshandle, &item, ticks)};
         }
 
-        Success send_from_isr(Item &item)
+        IRAM_ATTR Success send_from_isr(Item &item)
         {
             BaseType_t higher_priority_task_woken = pdFALSE;
-            return {pdTRUE == xQueueSendFromISR(freertoshandle, &item, &higher_priority_task_woken), pdTRUE == higher_priority_task_woken};
+            Success ret{pdTRUE == xQueueSendFromISR(freertoshandle, &item, &higher_priority_task_woken)};
+            if (pdTRUE == higher_priority_task_woken)
+                portYIELD_FROM_ISR();
+            return ret;
         }
 
         Success send_to_back(Item &item, TickType_t ticks = portMAX_DELAY)
@@ -71,16 +78,22 @@ namespace queue
             return {pdTRUE == xQueueSendToFront(freertoshandle, &item, ticks)};
         }
 
-        Success send_to_back_from_isr(Item &item, BaseType_t *pxHigherPriorityTaskWoken = nullptr)
+        IRAM_ATTR Success send_to_back_from_isr(Item &item, BaseType_t *pxHigherPriorityTaskWoken = nullptr)
         {
             BaseType_t higher_priority_task_woken = pdFALSE;
-            return {pdTRUE == xQueueSendToBackFromISR(freertoshandle, &item, &higher_priority_task_woken), pdTRUE == higher_priority_task_woken};
+            Success ret{pdTRUE == xQueueSendToBackFromISR(freertoshandle, &item, &higher_priority_task_woken)};
+            if (pdTRUE == higher_priority_task_woken)
+                portYIELD_FROM_ISR();
+            return ret;
         }
 
-        Success send_to_front_from_isr(Item &item, BaseType_t *pxHigherPriorityTaskWoken = nullptr)
+        IRAM_ATTR Success send_to_front_from_isr(Item &item, BaseType_t *pxHigherPriorityTaskWoken = nullptr)
         {
             BaseType_t higher_priority_task_woken = pdFALSE;
-            return {pdTRUE == xQueueSendToFrontFromISR(freertoshandle, &item, pxHigherPriorityTaskWoken)};
+            Success ret{pdTRUE == xQueueSendToFrontFromISR(freertoshandle, &item, &pxHigherPriorityTaskWoken)};
+            if (pdTRUE == higher_priority_task_woken)
+                portYIELD_FROM_ISR();
+            return ret;
         }
 
         [[nodiscard]] ItemReturn peek(TickType_t ticks = portMAX_DELAY) const
@@ -89,11 +102,14 @@ namespace queue
             return {{pdTRUE == xQueuePeek(freertoshandle, &item, ticks)}, item};
         }
 
-        [[nodiscard]] ItemReturn peek_from_isr() const
+        [[nodiscard]] IRAM_ATTR ItemReturn peek_from_isr() const
         {
             Item item{};
             BaseType_t higher_priority_task_woken = pdFALSE;
-            return {{pdTRUE == xQueuePeekFromISR(freertoshandle, &item, &higher_priority_task_woken), pdTRUE == higher_priority_task_woken}, item};
+            Success ret{pdTRUE == xQueuePeekFromISR(freertoshandle, &item, &higher_priority_task_woken), item};
+            if (pdTRUE == higher_priority_task_woken)
+                portYIELD_FROM_ISR();
+            return ret;
         }
 
         QueueHandle(QueueHandle_t handle) : freertoshandle{handle} {}
