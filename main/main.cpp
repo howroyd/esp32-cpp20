@@ -1,76 +1,51 @@
 #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
 
+#include "gpio.hpp"
 #include "smartconfig.hpp"
 #include "wifi.hpp"
 #include "wrappers/nvs.hpp"
-#include "wrappers/queue.hpp"
-#include "wrappers/sharablequeue.hpp"
 #include "wrappers/task.hpp"
 
-#include "driver/gpio.h"
-#include "esp_system.h"
-
-#include <chrono>
 #include <memory>
+#include <utility>
 #include <vector>
 
 // #define CLEAR_WIFI_NVS
 #define KEEP_WIFI_ALIVE
+#define PIN (gpio_num_t::GPIO_NUM_34)
 
 static constexpr const char *TAG = "main";
 
-IRAM_ATTR static void gpio_isr_handler(void *arg);
-
-struct gpio_isr
-{
-    gpio_num_t pin;
-    gpio_config_t config;
-    std::weak_ptr<queue::SharableQueue<gpio_num_t>> queue{};
-
-    static constexpr auto isr_handler = gpio_isr_handler;
-
-    struct Deleter
-    {
-        void operator()(gpio_isr *args) const
-        {
-            gpio_isr_handler_remove(args->pin);
-            delete args;
-        }
-    };
-};
-
 static void gpio_isr_handler(void *arg)
 {
-    auto args = *reinterpret_cast<gpio_isr *>(arg);
+    auto args = *reinterpret_cast<gpio::IsrArgs *>(arg);
     auto queue = args.queue.lock();
 
     ESP_DRAM_LOGD("gpio_isr_handler", "GPIO[%d] ISR", args.pin);
 
     if (queue)
-        queue->push_from_isr(args.pin);
+        queue->push_from_isr({args.pin, args.config.intr_type});
     else
         ESP_DRAM_LOGE("gpio_isr_handler", "Queue is null");
 }
 
-static void gpio_main(void *arg)
+[[nodiscard]] std::pair<std::unique_ptr<gpio::Gpio>, std::shared_ptr<gpio::IsrQueue>> unpack_gpio_task_arg(void *arg)
 {
-    using namespace std::chrono_literals;
+    auto args = reinterpret_cast<gpio::Gpio *>(arg);
+    assert(args);
+    auto queue = args->get_queue();
+    assert(queue);
+    return {std::unique_ptr<gpio::Gpio>{args}, queue};
+}
+
+[[noreturn]] static void gpio_main(void *arg)
+{
     using SmartConfig = sc::SmartConfig::Shared;
 
     ESP_LOGI(TAG, "GPIO main started");
 
-    std::unique_ptr<gpio_isr, gpio_isr::Deleter> args{reinterpret_cast<gpio_isr *>(arg), gpio_isr::Deleter{}};
-    assert(args);
-    assert(GPIO_IS_VALID_GPIO(args->pin));
-    auto queue = queue::make_sharablequeue<gpio_num_t>();
-    assert(queue);
-    args->queue = queue;
-
-    gpio_config(&args->config);
-
-    // hook isr handler for specific gpio pin
-    gpio_isr_handler_add(args->pin, args->isr_handler, args.get());
+    auto [gpio, queue] = unpack_gpio_task_arg(arg);
 
 #ifdef CLEAR_WIFI_NVS
     ESP_LOGE(TAG, "CLEAR_WIFI_NVS is enabled");
@@ -86,10 +61,10 @@ static void gpio_main(void *arg)
 
     while (true)
     {
-        // if (const auto result = gpio_evt_sharablequeue->pop_wait(1s))
         if (const auto result = queue->pop_wait())
         {
-            ESP_LOGI(TAG, "GPIO[%d] intr, val: %d", result.item, gpio_get_level(result.item));
+            const auto &item = result.item;
+            ESP_LOGI(TAG, "GPIO[%d] intr, val: %d, state: %s", item.pin, gpio_get_level(item.pin), gpio::int_type_to_string(item.state).c_str());
 
             if (instances.size() >= 5)
             {
@@ -110,24 +85,15 @@ static void gpio_main(void *arg)
     }
 }
 
-[[noreturn]] static void gpio_task(void *parm)
+int main()
 {
-    ESP_LOGI(TAG, "GPIO task started");
+    ESP_LOGD(TAG, "C++ entrypoint");
 
-    static constexpr auto pin = GPIO_NUM_34;
-    static_assert(GPIO_IS_VALID_GPIO(pin), "Invalid GPIO pin");
+    static_assert(GPIO_IS_VALID_GPIO(PIN), "Invalid GPIO pin");
 
-    // install gpio isr service
-    gpio_install_isr_service(0);
-
-    // start gpio task
-    auto gpioargs = new gpio_isr{pin, gpio_config_t{
-                                          .pin_bit_mask = 1ULL << pin,
-                                          .mode = GPIO_MODE_INPUT,
-                                          .pull_up_en = GPIO_PULLUP_DISABLE,
-                                          .pull_down_en = GPIO_PULLDOWN_ENABLE,
-                                          .intr_type = GPIO_INTR_NEGEDGE}};
+    auto gpioargs = new gpio::Gpio{PIN, gpio_config_t{.pin_bit_mask = 1ULL << PIN, .mode = GPIO_MODE_INPUT, .pull_up_en = GPIO_PULLUP_DISABLE, .pull_down_en = GPIO_PULLDOWN_ENABLE, .intr_type = GPIO_INTR_NEGEDGE}, gpio_isr_handler};
     auto gpio_task = task::make_task(gpio_main, "gpio_main", 4096, gpioargs, 10);
+
     if (not gpio_task)
     {
         ESP_LOGE(TAG, "Failed to create gpio_main task");
@@ -138,20 +104,10 @@ static void gpio_main(void *arg)
     task::delay_forever();
 }
 
-int main()
-{
-    ESP_LOGD(TAG, "Starting C++ main");
-    auto gpio_task_handle = task::make_task(gpio_task, "gpio_task", 4096, nullptr, 3);
-
-    task::delay_forever();
-
-    return 0;
-}
-
 extern "C" void app_main(void)
 {
     esp_log_level_set("*", ESP_LOG_DEBUG);
     ESP_ERROR_CHECK(nvs::initialise_nvs());
-    const int ret = main();
-    ESP_LOGE(TAG, "main() returned %d", ret);
+
+    main();
 }

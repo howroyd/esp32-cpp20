@@ -72,10 +72,13 @@ namespace sc
             return;
         }
 
+        auto success = handle_success_t::UNHANDLED;
+
         if (SC_EVENT == event_base)
-            handle_sc_event(args);
-        else [[unlikely]]
-            ESP_LOGW(TAG, "Unhandled event %s", event_base);
+            success = handle_sc_event(args);
+
+        if (handle_success_t::OK != success)
+            ESP_LOGW(TAG, "Event %u unhandled with status %d", args.event_id, static_cast<int>(success));
     }
 
     SmartConfig::EventHandlers::handle_success_t SmartConfig::EventHandlers::handle_sc_event(SmartConfig::EventHandlers::args_t args)

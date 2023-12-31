@@ -163,12 +163,15 @@ namespace wifi
             return;
         }
 
+        auto success = handle_success_t::UNHANDLED;
+
         if (WIFI_EVENT == event_base)
-            handle_wifi_event(args);
+            success = handle_wifi_event(args);
         else if (IP_EVENT == event_base)
-            handle_ip_event(args);
-        else [[unlikely]]
-            ESP_LOGW(TAG, "Unhandled event %s", event_base);
+            success = handle_ip_event(args);
+
+        if (handle_success_t::OK != success)
+            ESP_LOGW(TAG, "Event %u unhandled with status %d", args.event_id, static_cast<int>(success));
     }
 
     Wifi::EventHandlers::handle_success_t Wifi::EventHandlers::handle_wifi_event(Wifi::EventHandlers::args_t args)

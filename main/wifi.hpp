@@ -44,15 +44,15 @@ namespace wifi
 
         static bool clear_nvs_on_construction;
         static state_t get_state() { return state; }
-        [[gnu::pure]] static wifi_config_t get_config()
+        [[nodiscard, gnu::pure]] static wifi_config_t get_config()
         {
             wifi_config_t wifi_config{};
             esp_wifi_get_config(WIFI_IF_STA, &wifi_config);
             return wifi_config;
         }
 
-        std::string nvs_ssid() const;
-        std::string nvs_password() const;
+        [[nodiscard]] std::string nvs_ssid() const;
+        [[nodiscard]] std::string nvs_password() const;
         bool nvs_set(const wifi_config_t &config);
         bool nvs_erase();
 

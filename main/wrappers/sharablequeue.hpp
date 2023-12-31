@@ -66,20 +66,20 @@ namespace queue
             semphr::give(semaphore);
         }
 
-        IRAM_ATTR void push_from_isr(const T &item)
+        void push_from_isr(const T &item)
         {
             queue.push(item);
             semphr::give_from_isr(semaphore);
         }
 
-        IRAM_ATTR void push_from_isr(T &&item)
+        void push_from_isr(T &&item)
         {
             queue.push(std::move(item));
             semphr::give_from_isr(semaphore);
         }
 
         template <class... Args>
-        IRAM_ATTR void emplace_from_isr(Args &&...args)
+        void emplace_from_isr(Args &&...args)
         {
             queue.emplace(std::forward<Args>(args)...);
             semphr::give_from_isr(semaphore);

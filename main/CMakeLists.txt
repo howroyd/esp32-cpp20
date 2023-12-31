@@ -5,6 +5,7 @@ idf_component_register(SRCS
                             "wrappers/eventgroup.cpp"
                             "wrappers/nvs.cpp"
                             "wifi.cpp"
+                            "gpio.cpp"
                             "smartconfig.cpp"
                             "main.cpp"
                     INCLUDE_DIRS "."
