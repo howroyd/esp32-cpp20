@@ -1,3 +1,4 @@
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO
 #include "esp_log.h"
 
 #include "netif.hpp"
@@ -9,7 +10,7 @@ namespace netif
     {
         if (instance)
         {
-            ESP_LOGI("NetifWifiDeleter", "Deleting netif");
+            ESP_LOGD("NetifWifiDeleter", "Deleting netif");
             esp_netif_destroy(instance);
         }
     }

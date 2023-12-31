@@ -1,3 +1,4 @@
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO
 #include "esp_log.h"
 
 #include "semphr.hpp"
@@ -10,7 +11,7 @@ namespace semphr
     {
         if (freertoshandle)
         {
-            ESP_LOGI("SemaphoreDeleter", "Deleting semaphore");
+            ESP_LOGD("SemaphoreDeleter", "Deleting semaphore");
             vSemaphoreDelete(freertoshandle);
         }
     }

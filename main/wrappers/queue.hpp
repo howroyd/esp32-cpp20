@@ -116,10 +116,7 @@ namespace queue
         ~QueueHandle()
         {
             if (freertoshandle)
-            {
-                ESP_LOGI("QueueHandle", "Deleting queue");
                 vQueueDelete(freertoshandle);
-            }
         }
 
     private:

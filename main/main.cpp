@@ -1,10 +1,5 @@
-#include "driver/gpio.h"
+#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
-#include "esp_system.h"
-
-#include <chrono>
-#include <memory>
-#include <vector>
 
 #include "smartconfig.hpp"
 #include "wifi.hpp"
@@ -13,7 +8,15 @@
 #include "wrappers/sharablequeue.hpp"
 #include "wrappers/task.hpp"
 
-#define CLEAR_WIFI_NVS
+#include "driver/gpio.h"
+#include "esp_system.h"
+
+#include <chrono>
+#include <memory>
+#include <vector>
+
+// #define CLEAR_WIFI_NVS
+#define KEEP_WIFI_ALIVE
 
 static constexpr const char *TAG = "main";
 
@@ -59,6 +62,7 @@ static void gpio_main(void *arg)
 
     std::unique_ptr<gpio_isr, gpio_isr::Deleter> args{reinterpret_cast<gpio_isr *>(arg), gpio_isr::Deleter{}};
     assert(args);
+    assert(GPIO_IS_VALID_GPIO(args->pin));
     auto queue = queue::make_sharablequeue<gpio_num_t>();
     assert(queue);
     args->queue = queue;
@@ -69,11 +73,15 @@ static void gpio_main(void *arg)
     gpio_isr_handler_add(args->pin, args->isr_handler, args.get());
 
 #ifdef CLEAR_WIFI_NVS
-    wifi::Wifi::nvs_ssid_erase();
-    wifi::Wifi::nvs_password_erase();
+    ESP_LOGE(TAG, "CLEAR_WIFI_NVS is enabled");
+    wifi::Wifi::clear_nvs_on_construction = true;
 #endif
 
+#ifdef KEEP_WIFI_ALIVE
+    ESP_LOGE(TAG, "KEEP_WIFI_ALIVE is enabled");
     auto wifiobj{wifi::Wifi::get_shared()};
+#endif
+
     std::vector<SmartConfig> instances;
 
     while (true)
@@ -85,7 +93,10 @@ static void gpio_main(void *arg)
 
             if (instances.size() >= 5)
             {
-                ESP_LOGW(TAG, "Clearing instances");
+                ESP_LOGW(TAG, "Clearing instances and wiping WiFi NVS");
+                auto _wifi = instances.front()->get_wifi();
+                _wifi->nvs_erase();
+                _wifi->disconnect();
                 instances.clear();
             }
             else
@@ -104,6 +115,7 @@ static void gpio_main(void *arg)
     ESP_LOGI(TAG, "GPIO task started");
 
     static constexpr auto pin = GPIO_NUM_34;
+    static_assert(GPIO_IS_VALID_GPIO(pin), "Invalid GPIO pin");
 
     // install gpio isr service
     gpio_install_isr_service(0);
@@ -128,6 +140,7 @@ static void gpio_main(void *arg)
 
 int main()
 {
+    ESP_LOGD(TAG, "Starting C++ main");
     auto gpio_task_handle = task::make_task(gpio_task, "gpio_task", 4096, nullptr, 3);
 
     task::delay_forever();
@@ -137,6 +150,7 @@ int main()
 
 extern "C" void app_main(void)
 {
+    esp_log_level_set("*", ESP_LOG_DEBUG);
     ESP_ERROR_CHECK(nvs::initialise_nvs());
     const int ret = main();
     ESP_LOGE(TAG, "main() returned %d", ret);

@@ -1,3 +1,4 @@
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO
 #include "esp_log.h"
 
 #include "eventgroup.hpp"
@@ -20,7 +21,7 @@ namespace eventgroup
     {
         if (freertoshandle)
         {
-            ESP_LOGI("EventgroupDeleter", "Deleting event group");
+            ESP_LOGD("EventgroupDeleter", "Deleting event group");
             vEventGroupDelete(freertoshandle);
         }
     }

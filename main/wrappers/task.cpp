@@ -1,3 +1,4 @@
+#define LOG_LOCAL_LEVEL ESP_LOG_INFO
 #include "esp_log.h"
 
 #include "task.hpp"
@@ -9,7 +10,7 @@ namespace task
     {
         if (freertoshandle)
         {
-            ESP_LOGI("TaskDeleter", "Deleting task");
+            ESP_LOGD("TaskDeleter", "Deleting task");
             vTaskDelete(freertoshandle);
         }
     }
@@ -32,6 +33,16 @@ namespace task
             return nullptr;
         }
         return make_task_from_taskhandle(freertoshandle);
+    }
+
+    void log_stack(const char *tag, uint32_t taskstacksize)
+    {
+        const auto stackused = static_cast<double>(taskstacksize) - uxTaskGetStackHighWaterMark(nullptr);
+        const auto stackusedpercentage = static_cast<double>(stackused) / taskstacksize * 100.0;
+        if (stackusedpercentage > 90.0)
+            ESP_LOGW(tag, "Stack used: %.0f words (%.2f%%)", stackused, stackusedpercentage);
+        else
+            ESP_LOGI(tag, "Stack used: %.0f words (%.2f%%)", stackused, stackusedpercentage);
     }
 
 } // namespace task

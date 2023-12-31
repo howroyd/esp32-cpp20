@@ -1,6 +1,6 @@
 #pragma once
 
-#include "esp_log.h"
+//#include "esp_log.h"
 
 #include <memory>
 #include <mutex>
@@ -19,12 +19,12 @@ public:
 
         if (instance.expired())
         {
-            ESP_LOGW("Singleton", "Getting shared of %s from a new", T::TAG);
+            //ESP_LOGW("Singleton", "Getting shared of %s from a new", T::TAG);
             auto shared = create(std::forward<Args>(args)...);
             instance = shared;
             return shared;
         }
-        ESP_LOGW("Singleton", "Getting shared of %s from existing weak", T::TAG);
+        //ESP_LOGW("Singleton", "Getting shared of %s from existing weak", T::TAG);
         return Shared{instance};
     }
 
@@ -32,7 +32,7 @@ public:
     {
         std::scoped_lock lock{mutex};
 
-        ESP_LOGW("Singleton", "Getting weak of %s", T::TAG);
+        //ESP_LOGW("Singleton", "Getting weak of %s", T::TAG);
         return instance;
     }
 
@@ -40,7 +40,7 @@ protected:
     template <typename... Args>
     [[nodiscard]] static Shared create(Args &&...args)
     {
-        ESP_LOGE("Singleton", "Creating instance of %s", T::TAG);
+        //ESP_LOGE("Singleton", "Creating instance of %s", T::TAG);
         return Shared{new T{std::forward<Args>(args)...}};
     }
 

@@ -21,12 +21,7 @@ namespace task
     [[nodiscard]] Task make_task_from_taskhandle(TaskHandle_t freertoshandle);
     [[nodiscard]] Task make_task(TaskFunction_t fn, const char *taskname, uint32_t taskstacksize, void *args, UBaseType_t taskpriority);
 
-    inline void log_stack(const char *tag, auto taskstacksize)
-    {
-        const auto stackused = static_cast<double>(taskstacksize) - uxTaskGetStackHighWaterMark(nullptr);
-        const auto stackusedpercentage = static_cast<double>(stackused) / taskstacksize * 100.0;
-        ESP_LOGE(tag, "Stack used: %.0f words (%.2f%%)", stackused, stackusedpercentage);
-    }
+    void log_stack(const char *tag, uint32_t taskstacksize);
 
     [[nodiscard, gnu::const]] static inline constexpr TickType_t to_ticks(std::chrono::milliseconds ms)
     {

@@ -1,11 +1,11 @@
-# Name,         Type, SubType,  Offset,   Size,       Flags
-nvs,            data, nvs,      0x010000, 20K,
-nvs_key,        data, nvs_keys, ,         8K,
-phy_init,       data, phy,      ,         4K,
-otadata,        data, ota,      ,         8K,
-SmartConfig,    data, nvs,      ,         4K,
-mqtt,           data, nvs,      ,         4K,
-spare,          data, nvs,      ,         16K,
-factory,        app,  factory,  0x20000,  1280k,
-ota_0,          app,  ota_0,    ,         1280k,
-ota_1,          app,  ota_1,    ,         1280k
+# Name,         Type,   SubType,    Offset,     Size,     Flags
+nvs,            data,   nvs,        0x010000,   20K,      ,
+nvs_key,        data,   nvs_keys,   ,           8K,       ,
+phy_init,       data,   phy,        ,           4K,       ,
+otadata,        data,   ota,        ,           8K,       ,
+SmartConfig,    data,   nvs,        ,           4K,       ,
+mqtt,           data,   nvs,        ,           4K,       ,
+spare,          data,   nvs,        ,           16K,      ,
+factory,        app,    factory,    0x20000,    1280k,    ,
+ota_0,          app,    ota_0,      ,           1280k,    ,
+ota_1,          app,    ota_1,      ,           1280k,    ,
