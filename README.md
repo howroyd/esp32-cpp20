@@ -1,6 +1,6 @@
 # ESP IDF Project Using C++20
 
-[YouTube Channel](https://www.youtube.com/channel/UCxjeO0FH6sdpwIb2Wkbwtzw)
+[https://www.youtube.com/c/SimonHowroyd](https://www.youtube.com/c/SimonHowroyd)
 
 ## Prerequisites
 

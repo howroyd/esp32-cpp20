@@ -15,7 +15,7 @@ namespace eventgroup
             return bits.to_ullong();
     }
 
-    [[gnu::const]] static constexpr auto bool2pdTrue(bool b) { return b ? pdTRUE : pdFALSE; }
+    [[gnu::const]] static constexpr auto bool2pdTrue(bool b) noexcept { return b ? pdTRUE : pdFALSE; }
 
     void Deleter::operator()(EventGroupHandle_t freertoshandle) const
     {

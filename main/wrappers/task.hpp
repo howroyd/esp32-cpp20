@@ -23,7 +23,7 @@ namespace task
 
     void log_stack(const char *tag, uint32_t taskstacksize);
 
-    [[nodiscard, gnu::const]] static inline constexpr TickType_t to_ticks(std::chrono::milliseconds ms)
+    [[nodiscard, gnu::const]] static inline constexpr TickType_t to_ticks(std::chrono::milliseconds ms) noexcept
     {
         if (ms == std::chrono::milliseconds::max())
             return portMAX_DELAY;

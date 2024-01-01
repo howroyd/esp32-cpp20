@@ -18,6 +18,7 @@ namespace gpio
         assert(configs.find(pin) == configs.end());
         const auto [piniter, pinsuccess] = used_pins.insert(pin);
         assert(pinsuccess);
+        assert(not config_is_empty(config));
         const auto [configiter, configsuccess] = configs.insert({pin, config});
         assert(configsuccess);
 
@@ -54,6 +55,24 @@ namespace gpio
         assert(pinerased);
 
         ESP_LOGI(TAG, "Unregistered GPIO[%d]", pin);
+    }
+
+    bool GpioBase::in_use(gpio_num_t pin)
+    {
+        std::scoped_lock _(mutex);
+        const bool is_used = used_pins.find(pin) != used_pins.end();
+        const bool is_configured = configs.find(pin) != configs.end();
+        assert(is_used == is_configured);
+        return is_used;
+    }
+
+    std::optional<gpio_config_t> GpioBase::find_config(gpio_num_t pin)
+    {
+        if (not in_use(pin))
+            return {};
+
+        std::scoped_lock _(mutex);
+        return {configs.find(pin)->second};
     }
 
 } // namespace gpio

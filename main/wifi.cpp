@@ -6,7 +6,7 @@
 namespace wifi
 {
 
-    [[nodiscard, gnu::pure]] SsidPasswordView config_to_ssidpasswordview(const wifi_config_t &config)
+    [[nodiscard, gnu::pure]] SsidPasswordView config_to_ssidpasswordview(const wifi_config_t &config) noexcept
     {
         return {std::string_view(reinterpret_cast<const char *>(config.sta.ssid), sizeof(config.sta.ssid)),
                 std::string_view(reinterpret_cast<const char *>(config.sta.password), sizeof(config.sta.password))};

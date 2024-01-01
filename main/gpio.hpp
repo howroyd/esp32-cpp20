@@ -8,9 +8,17 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
+
+static constexpr bool operator==(const gpio_config_t &lhs, const gpio_config_t &rhs) noexcept
+{
+    return std::tie(lhs.pin_bit_mask, lhs.mode, lhs.pull_up_en, lhs.pull_down_en, lhs.intr_type) ==
+           std::tie(rhs.pin_bit_mask, rhs.mode, rhs.pull_up_en, rhs.pull_down_en, rhs.intr_type);
+}
 
 namespace gpio
 {
@@ -38,6 +46,12 @@ namespace gpio
         }
     }
 
+    [[nodiscard, gnu::const]] static constexpr bool config_is_empty(const gpio_config_t &config) noexcept
+    {
+        constexpr auto empty = gpio_config_t{};
+        return config != empty;
+    }
+
     struct IsrRet
     {
         gpio_num_t pin;
@@ -63,6 +77,9 @@ namespace gpio
         std::shared_ptr<IsrQueue> get_queue() const { return isr_queue; }
 
         ~GpioBase();
+
+        [[nodiscard]] static bool in_use(gpio_num_t pin);
+        [[nodiscard]] static std::optional<gpio_config_t> find_config(gpio_num_t pin);
 
     protected:
         friend Singleton<GpioBase>; // NOTE: So Singleton can use our private/protected constructor
@@ -97,34 +114,5 @@ namespace gpio
         [[nodiscard]] gpio_num_t get_pin() const { return base->get_pin(); }
         [[nodiscard]] std::shared_ptr<IsrQueue> get_queue() const { return base->get_queue(); }
     };
-
-    // struct Deleter
-    // {
-    //     using pointer = EventGroupHandle_t;
-
-    //     void operator()(EventGroupHandle_t freertoshandle) const;
-    // };
-
-    // using Eventgroup = std::unique_ptr<EventGroupHandle_t, Deleter>;
-
-    // [[nodiscard]] Eventgroup make_eventgroup_from_handle(EventGroupHandle_t freertoshandle);
-    // [[nodiscard]] Eventgroup make_eventgroup();
-
-    // using Eventbits = std::bitset<n_event_bits>;
-
-    // struct BitsReturn
-    // {
-    //     Eventbits bits;
-    //     bool success = true;
-    //     operator bool() const { return success; } // NOTE: Success that bits were returned, not that the bits were set
-    // };
-
-    // [[nodiscard]] BitsReturn get_bits(const Eventgroup &event_group);
-    // [[nodiscard]] IRAM_ATTR BitsReturn get_bits_from_isr(const Eventgroup &event_group);
-    // BitsReturn clear_bits(Eventgroup &event_group, Eventbits bits);
-    // IRAM_ATTR BitsReturn clear_bits_from_isr(Eventgroup &event_group, Eventbits bits);
-    // BitsReturn set_bits(Eventgroup &event_group, Eventbits bits);
-    // IRAM_ATTR BitsReturn set_bits_from_isr(Eventgroup &event_group, Eventbits bits);
-    // [[nodiscard]] BitsReturn wait_bits(Eventgroup &event_group, Eventbits bits, bool clear_on_exit, bool wait_for_all_bits, std::chrono::milliseconds wait_time = std::chrono::milliseconds::max());
 
 } // namespace gpio

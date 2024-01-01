@@ -43,7 +43,7 @@ namespace wifi
         ~Wifi();
 
         static bool clear_nvs_on_construction;
-        static state_t get_state() { return state; }
+        [[nodiscard, gnu::pure]] static state_t get_state() noexcept { return state; }
         [[nodiscard, gnu::pure]] static wifi_config_t get_config()
         {
             wifi_config_t wifi_config{};

@@ -30,8 +30,8 @@ namespace sc
     public:
         ~SmartConfig();
 
-        state_t get_state() const { return state; }
-        wifi::Wifi::Shared get_wifi() const { return wifiobj; }
+        [[nodiscard, gnu::pure]] state_t get_state() const noexcept { return state; }
+        [[nodiscard]] wifi::Wifi::Shared get_wifi() const { return wifiobj; }
 
     protected:
         static constexpr const char *const TAG{"SmartConfig"};
