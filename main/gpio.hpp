@@ -6,6 +6,7 @@
 #include "driver/gpio.h"
 #include "esp_system.h"
 
+#include <array>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -13,6 +14,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 static constexpr bool operator==(const gpio_config_t &lhs, const gpio_config_t &rhs) noexcept
 {
@@ -49,7 +51,40 @@ namespace gpio
     [[nodiscard, gnu::const]] static constexpr bool config_is_empty(const gpio_config_t &config) noexcept
     {
         constexpr auto empty = gpio_config_t{};
-        return config != empty;
+        return config == empty;
+    }
+
+    using ArduinoIdfPair = std::pair<const std::string, gpio_num_t>;
+
+    static constexpr std::array<ArduinoIdfPair, 20> arduino_idf_map{{
+        {"D2", gpio_num_t::GPIO_NUM_26},
+        {"D3", gpio_num_t::GPIO_NUM_25},
+        {"D4", gpio_num_t::GPIO_NUM_17},
+        {"D5", gpio_num_t::GPIO_NUM_16},
+        {"D6", gpio_num_t::GPIO_NUM_27},
+        {"D7", gpio_num_t::GPIO_NUM_14},
+        {"D8", gpio_num_t::GPIO_NUM_12},
+        {"D9", gpio_num_t::GPIO_NUM_13},
+        {"D10", gpio_num_t::GPIO_NUM_5},
+        {"D11", gpio_num_t::GPIO_NUM_23},
+        {"D12", gpio_num_t::GPIO_NUM_19},
+        {"D13", gpio_num_t::GPIO_NUM_18},
+        {"D14", gpio_num_t::GPIO_NUM_21},
+        {"D15", gpio_num_t::GPIO_NUM_22},
+        {"A0", gpio_num_t::GPIO_NUM_2},
+        {"A1", gpio_num_t::GPIO_NUM_4},
+        {"A2", gpio_num_t::GPIO_NUM_35},
+        {"A3", gpio_num_t::GPIO_NUM_34},
+        {"A4", gpio_num_t::GPIO_NUM_36},
+        {"A5", gpio_num_t::GPIO_NUM_39},
+    }};
+
+    static constexpr gpio_num_t arduino_to_idf(const std::string &arduino_pin)
+    {
+        for (const auto &[arduino, idf] : arduino_idf_map)
+            if (arduino == arduino_pin)
+                return idf;
+        return gpio_num_t::GPIO_NUM_NC;
     }
 
     struct IsrRet
@@ -76,8 +111,10 @@ namespace gpio
         gpio_num_t get_pin() const { return pin; }
         std::shared_ptr<IsrQueue> get_queue() const { return isr_queue; }
 
-        ~GpioBase();
+        ~GpioBase() = default;
 
+        bool initialise_pin(gpio_num_t pin, gpio_config_t config, gpio_isr_t isr = nullptr, void *isr_args = nullptr);
+        bool deinitilise_pin(gpio_num_t pin);
         [[nodiscard]] static bool in_use(gpio_num_t pin);
         [[nodiscard]] static std::optional<gpio_config_t> find_config(gpio_num_t pin);
 
@@ -89,13 +126,13 @@ namespace gpio
         static std::unordered_map<gpio_num_t, gpio_config_t> configs;
         static std::mutex mutex;
 
-        GpioBase() = delete;
+        GpioBase() = default;
         GpioBase(const GpioBase &) = delete;
         GpioBase(GpioBase &&) = delete;
         GpioBase &operator=(const GpioBase &) = delete;
         GpioBase &operator=(GpioBase &&) = delete;
 
-        GpioBase(gpio_num_t pin, gpio_config_t config, gpio_isr_t isr = nullptr, void *isr_args = nullptr);
+        //GpioBase(gpio_num_t pin, gpio_config_t config, gpio_isr_t isr = nullptr, void *isr_args = nullptr);
 
     private:
         gpio_num_t pin;
@@ -107,9 +144,15 @@ namespace gpio
     class Gpio
     {
         GpioBase::Shared base;
+        gpio_num_t pin;
 
     public:
-        Gpio(gpio_num_t pin, gpio_config_t config, gpio_isr_t isr = nullptr, void *isr_args = nullptr) : base{GpioBase::get_shared(pin, config, isr, isr_args)} {}
+        Gpio(gpio_num_t pin, gpio_config_t config, gpio_isr_t isr = nullptr, void *isr_args = nullptr) : base{GpioBase::get_shared()}, pin{pin} {
+            base->initialise_pin(pin, config, isr, isr_args);
+        }
+        ~Gpio() {
+            base->deinitilise_pin(pin);
+        }
 
         [[nodiscard]] gpio_num_t get_pin() const { return base->get_pin(); }
         [[nodiscard]] std::shared_ptr<IsrQueue> get_queue() const { return base->get_queue(); }

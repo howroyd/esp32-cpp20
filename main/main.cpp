@@ -7,13 +7,15 @@
 #include "wrappers/nvs.hpp"
 #include "wrappers/task.hpp"
 
+#include <chrono>
 #include <memory>
 #include <utility>
 #include <vector>
 
 // #define CLEAR_WIFI_NVS
 #define KEEP_WIFI_ALIVE
-#define PIN (gpio_num_t::GPIO_NUM_34)
+//#define PIN (gpio_num_t::GPIO_NUM_34)
+#define PIN (gpio::arduino_to_idf("D3"))
 
 static constexpr const char *TAG = "main";
 
@@ -99,6 +101,29 @@ int main()
         ESP_LOGE(TAG, "Failed to create gpio_main task");
         delete gpioargs;
         abort();
+    }
+
+    const auto red_led_pin = gpio::arduino_to_idf("D12");
+    auto red_led = gpio::Gpio{red_led_pin, gpio_config_t{.pin_bit_mask = 1ULL << red_led_pin, .mode = GPIO_MODE_OUTPUT, .pull_up_en = GPIO_PULLUP_DISABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE}};
+
+    const auto blue_led_pin = gpio::arduino_to_idf("D13");
+    auto blue_led = gpio::Gpio{blue_led_pin, gpio_config_t{.pin_bit_mask = 1ULL << blue_led_pin, .mode = GPIO_MODE_OUTPUT, .pull_up_en = GPIO_PULLUP_DISABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE}};
+
+    const auto button2_pin = gpio::arduino_to_idf("D2");
+    auto button2 = gpio::Gpio{button2_pin, gpio_config_t{.pin_bit_mask = 1ULL << button2_pin, .mode = GPIO_MODE_INPUT, .pull_up_en = GPIO_PULLUP_ENABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE}};
+
+    while (true)
+    {
+        using namespace std::chrono_literals;
+        if (not gpio_get_level(button2_pin))
+        {
+            gpio_set_level(blue_led_pin, 1);
+            gpio_set_level(red_led_pin, 0);
+            task::delay(1s);
+            gpio_set_level(blue_led_pin, 0);
+            gpio_set_level(red_led_pin, 1);
+        }
+        task::delay(1s);
     }
 
     task::delay_forever();

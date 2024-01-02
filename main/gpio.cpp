@@ -10,7 +10,9 @@ namespace gpio
     std::unordered_map<gpio_num_t, gpio_config_t> GpioBase::configs{};
     std::mutex GpioBase::mutex{};
 
-    GpioBase::GpioBase(gpio_num_t pin, gpio_config_t config, gpio_isr_t isr, void *isr_args) : pin{pin}, isr{isr}, isr_args{pin, config, {}, isr_args}
+
+
+    bool GpioBase::initialise_pin(gpio_num_t pin, gpio_config_t config, gpio_isr_t isr, void *isr_args)
     {
         assert(GPIO_IS_VALID_GPIO(pin));
         std::scoped_lock _(mutex);
@@ -36,9 +38,11 @@ namespace gpio
             assert(ESP_OK == installsuccess || ESP_ERR_INVALID_STATE == installsuccess); // NOTE: Installed or already installed
             ESP_ERROR_CHECK(gpio_isr_handler_add(pin, isr, &this->isr_args));
         }
+
+        return true;
     }
 
-    GpioBase::~GpioBase()
+    bool GpioBase::deinitilise_pin(gpio_num_t pin)
     {
         std::scoped_lock _(mutex);
 
@@ -55,6 +59,8 @@ namespace gpio
         assert(pinerased);
 
         ESP_LOGI(TAG, "Unregistered GPIO[%d]", pin);
+
+        return true;
     }
 
     bool GpioBase::in_use(gpio_num_t pin)
